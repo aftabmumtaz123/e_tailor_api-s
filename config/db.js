@@ -1,44 +1,22 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-// Global connection variable to reuse in serverless
-let cached = global.mongoose;
+let isConnected = false;
 
-if (!cached) {
-  cached = global.mongoose = { conn: null, promise: null };
-}
-
-async function dbConnect() {
-  if (cached.conn) {
-    return cached.conn;
-  }
-
-  if (!cached.promise) {
-    const opts = {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 20000, // 20s timeout for Vercel
-      socketTimeoutMS: 45000, // 45s socket timeout
-    };
-
-    cached.promise = mongoose.connect(process.env.MONGODB_URI, opts)
-      .then((mongoose) => {
-        console.log('Connected to MongoDB Atlas');
-        return mongoose;
-      })
-      .catch((err) => {
-        console.error('MongoDB connection error:', err);
-        throw err;
-      });
-  }
+async function connectDB() {
+  if (isConnected) return;
 
   try {
-    cached.conn = await cached.promise;
-  } catch (e) {
-    cached.promise = null;
-    throw e;
-  }
+    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
 
-  return cached.conn;
+    isConnected = conn.connections[0].readyState;
+    console.log("✅ MongoDB connected:", conn.connection.host);
+  } catch (err) {
+    console.error("❌ MongoDB connection error:", err.message);
+    throw err;
+  }
 }
 
-module.exports = dbConnect;
+module.exports = connectDB;

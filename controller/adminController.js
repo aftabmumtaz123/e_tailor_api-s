@@ -81,12 +81,17 @@ exports.adminLogin = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Login error:", error.message);
-
-    return res.status(500).json({
-      success: false,
-      message: "Server error during login",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
+  console.error("❌ Login error:", error);
+  let message = "Server error during login";
+  if (error.name === "MongoError") {
+    message = "Database error occurred";
+  } else if (error.name === "JsonWebTokenError") {
+    message = "Token generation failed";
   }
+  return res.status(500).json({
+    success: false,
+    message,
+    error: process.env.NODE_ENV === "development" ? error.message : undefined,
+  });
+}
 };

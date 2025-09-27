@@ -13,7 +13,7 @@ const Admin = require('./model/admin');
 const ConfigurationRouter = require('./router/appConfigurationRouter');
 const multer = require('multer');
 const bcrypt = require('bcryptjs');
-require('./config/db');
+await require('./config/db');
 
 app.set('view engine', 'ejs');
 app.use(cookieParser());
