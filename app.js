@@ -91,11 +91,6 @@ app.use((err, req, res, next) => {
 });
 
 
-
-
-
-
-
 // Routes
 app.use('/auth', authRoute);
 app.use('/auth/login', adminRouter); 
@@ -105,8 +100,9 @@ app.use('/announcement', announcementRoute);
 app.use('/configuration', ConfigurationRouter);
 
 app.get('/', (req, res) => {
-  res.render('index');
+  res.json({ message: 'E-Tailor API is running' });
 });
+
 
 app.use((err, req, res, next) => {
   console.error('Error:', err);
