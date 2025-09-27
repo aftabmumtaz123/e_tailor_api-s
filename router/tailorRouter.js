@@ -16,6 +16,6 @@ router.put(
 );
 
 router.delete("/delete/:id", authMiddleware,deleteTailor)       //////        /tailor/delete/:id
-router.get("/list",getTailor) 
+router.get("/list", authMiddleware,getTailor) 
 
 module.exports = router
