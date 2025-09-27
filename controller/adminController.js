@@ -8,7 +8,15 @@ exports.adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // 1. Validate input
+    // 1. Validate input types
+    if (typeof email !== "string" || typeof password !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password must be strings",
+      });
+    }
+
+    // 2. Validate input
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -28,12 +36,12 @@ exports.adminLogin = async (req, res) => {
       });
     }
 
-    // 2. Validate environment variables
+    // 3. Validate environment variables
     if (!process.env.JWT_SECRET || !process.env.REFRESH_SECRET) {
       throw new Error("JWT_SECRET or REFRESH_SECRET not configured");
     }
 
-    // 3. Normalize and find admin
+    // 4. Normalize and find admin
     const admin = await Admin.findOne({ email: email.toLowerCase().trim() });
     if (!admin) {
       return res.status(400).json({
@@ -42,7 +50,7 @@ exports.adminLogin = async (req, res) => {
       });
     }
 
-    // 4. Compare passwords
+    // 5. Compare passwords
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) {
       return res.status(400).json({
@@ -51,7 +59,7 @@ exports.adminLogin = async (req, res) => {
       });
     }
 
-    // 5. Generate tokens
+    // 6. Generate tokens
     const accessToken = jwt.sign(
       { id: admin._id, email: admin.email, role: "admin" },
       process.env.JWT_SECRET,
@@ -64,7 +72,7 @@ exports.adminLogin = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    // 6. Save refresh token with synchronized expiry
+    // 7. Save refresh token with synchronized expiry
     const decoded = jwt.decode(refreshToken);
     await RefreshToken.deleteMany({ userId: admin._id });
     await RefreshToken.create({
@@ -73,7 +81,7 @@ exports.adminLogin = async (req, res) => {
       expiresAt: new Date(decoded.exp * 1000),
     });
 
-    // 7. Set cookies securely
+    // 8. Set cookies securely
     const isSecure = req.protocol === "https" || process.env.NODE_ENV === "production";
     res.cookie("access_token", accessToken, {
       httpOnly: true,
@@ -89,7 +97,7 @@ exports.adminLogin = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    // 8. Response
+    // 9. Response
     return res.json({
       success: true,
       message: "Login successful",
@@ -97,17 +105,20 @@ exports.adminLogin = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Login error:", error);
+    console.error(`❌ Login error [${req.ip}]:`, error);
     let message = "Server error during login";
     if (error.name === "MongoError") {
       message = "Database error occurred";
     } else if (error.name === "JsonWebTokenError") {
       message = "Token generation failed";
+    } else if (error.message.includes("JWT_SECRET")) {
+      message = "Server configuration error";
     }
     return res.status(500).json({
       success: false,
       message,
       error: process.env.NODE_ENV === "development" ? error.message : undefined,
+      errorId: "dxb1::977kg-1758997463471-8c448fb874ab", // Include for tracking
     });
   }
 };
