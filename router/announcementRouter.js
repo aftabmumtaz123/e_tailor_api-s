@@ -9,8 +9,8 @@ const {getAnnouncement, createAnnouncement, deleteAnnouncement} = require("../co
 
 
 
-router.get("/list", getAnnouncement);
-router.post('/create', upload.single('announcementImage'), createAnnouncement);
-router.delete("/delete/:id", deleteAnnouncement);
+router.get("/list", authMiddleware ,getAnnouncement);
+router.post('/create', authMiddleware ,upload.single('announcementImage'), createAnnouncement);
+router.delete("/delete/:id", authMiddleware ,deleteAnnouncement);
 
 module.exports = router;
