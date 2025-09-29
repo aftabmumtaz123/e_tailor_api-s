@@ -4,19 +4,16 @@ const announcementSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      required: [true, "Title is required"],
       trim: true,
       minlength: [3, "Title must be at least 3 characters"],
       maxlength: [100, "Title cannot exceed 100 characters"],
     },
     announcementImage: {
       type: String,
-      // required: [true, "Image URL is required"],
       trim: true,
     },
     message: {
       type: String,
-      required: [true, "Message is required"],
       trim: true,
       minlength: [10, "Message must be at least 10 characters"],
       maxlength: [1000, "Message cannot exceed 1000 characters"],

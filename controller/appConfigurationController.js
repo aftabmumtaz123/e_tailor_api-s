@@ -204,6 +204,7 @@ exports.updateAppConfiguration = async (req, res) => {
 
     // Find existing configuration
     const existingConfig = await Configuration.findById(id);
+    console.log(existingConfig)
     if (!existingConfig) {
       return res.status(404).json({
         success: false,

@@ -72,13 +72,7 @@ exports.createAnnouncement = async (req, res) => {
       });
     }
 
-    // Image check
-    if (!announcementImage) {
-      return res.status(400).json({
-        success: false,
-        message: "Announcement image is required",
-      });
-    }
+
 
     // Date validations
     if (publishDate && isNaN(Date.parse(publishDate))) {
