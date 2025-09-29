@@ -14,6 +14,7 @@ const ConfigurationRouter = require('./router/appConfigurationRouter');
 const multer = require('multer');
 const bcrypt = require('bcryptjs');
 
+const ReportRouter = require("./router/reportRoute")
 
 
 const connectDB = require("./config/db"); // export function, don’t await require
@@ -115,6 +116,9 @@ app.use('/subscription', subscriptionRoute);
 app.use('/tailor', tailorRoute);
 app.use('/announcement', announcementRoute);
 app.use('/configuration', ConfigurationRouter);
+app.use('/', ReportRouter);
+
+
 
 app.get('/', (req, res) => {
   res.json({ message: 'E-Tailor API is running' });
