@@ -26,7 +26,7 @@ const subscriptionSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: {
-        values: ['Active', 'Expired']
+        values: ['Active', 'Inactive']
       },
       default: 'Active',
       index: true, // Index for filtering active/expired
