@@ -4,13 +4,13 @@ const upload = require("../config/multer");
 const authMiddleware = require('../middleware/auth');
 
 const {
-//   createAppConfiguration,
+  createAppConfiguration,
   updateAppConfiguration,
   getAppConfigurationById
 } = require("../controller/appConfigurationController");
 
 // Create new configuration
-// router.post("/set", authMiddleware, upload.single("appLogo"), createAppConfiguration);
+router.post("/set", upload.single("appLogo"), createAppConfiguration);
 
 // Update configuration
 router.put("/set/:id", upload.single("appLogo"), updateAppConfiguration);
