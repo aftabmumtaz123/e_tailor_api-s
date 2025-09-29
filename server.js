@@ -18,7 +18,6 @@ const bcrypt = require('bcryptjs');
 
 const connectDB = require("./config/db"); // export function, don’t await require
 
-const app = express();
 
 (async () => {
   await connectDB();
