@@ -13,7 +13,25 @@ const Admin = require('./model/admin');
 const ConfigurationRouter = require('./router/appConfigurationRouter');
 const multer = require('multer');
 const bcrypt = require('bcryptjs');
-await require('./config/db');
+
+
+
+const connectDB = require("./config/db"); // export function, don’t await require
+
+const app = express();
+
+(async () => {
+  await connectDB();
+  console.log("✅ DB connected");
+
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+})();
+
+
+
+
+
 
 app.set('view engine', 'ejs');
 app.use(cookieParser());
