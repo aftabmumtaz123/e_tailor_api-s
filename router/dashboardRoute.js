@@ -38,6 +38,7 @@ router.get("/api/dashboard-stats", async (req, res) => {
     const activeSubs = await Subscription.countDocuments({ status: "Active" });
     const inactiveSubs = await Subscription.countDocuments({
       status: "Inactive",
+      /*endDate: { $lt: now },*/
     });
 
     // 5. New Tailors This Month (Daily breakdown for September 2025)
