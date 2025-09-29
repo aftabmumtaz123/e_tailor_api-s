@@ -78,13 +78,6 @@ const tailorSchema = new mongoose.Schema(
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Announcement",
-        validate: {
-          validator: async function (id) {
-            const announcement = await mongoose.model("Announcement").findById(id);
-            return !!announcement;
-          },
-          message: "Invalid announcement ID",
-        },
       },
     ],
     orders: [

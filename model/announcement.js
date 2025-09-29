@@ -29,12 +29,7 @@ const announcementSchema = new mongoose.Schema(
     expiryDate: {
       type: Date,
       required: [true, "Expiry date is required"],
-      validate: {
-        validator: function (value) {
-          return this.publishDate < value;
-        },
-        message: "Expiry date must be after publish date",
-      },
+      
     },
     sendTo: {
       type: String,
