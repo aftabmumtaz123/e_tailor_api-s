@@ -6,11 +6,13 @@ const Subscription = require('../model/subscription'); // Mongoose model for Sub
 const UserLogin = require('../model/loginUser'); // Mongoose model for User Logins
 const User = require('../model/User'); // Mongoose model for Users
 // Dashboard Stats Route
+const mongoose = require('mongoose');
+
 
 router.get("/api/dashboard-stats", async (req, res) => {
   try {
-    // Current date and time: September 29, 2025, 1:41 PM PKT (UTC+5)
-    const now = new Date("2025-09-29T13:41:00+05:00");
+    // Current date and time: September 29, 2025, 4:08 PM PKT (UTC+5)
+    const now = new Date("2025-09-29T16:08:00+05:00");
 
     // 1. Total Tailors with growth percentage
     const totalTailors = await Tailor.countDocuments({});
@@ -24,9 +26,20 @@ router.get("/api/dashboard-stats", async (req, res) => {
       : 0;
     const formattedGrowth = growthPercent > 0 ? `+${growthPercent}%` : `${growthPercent}%`;
 
-    // 2. Total Customers
-    const totalCustomers = await Customer.countDocuments({});
-
+   // 2. Total Customers with growth percentage
+const totalCustomers = await Customer.countDocuments({});
+const customerLastMonthStart = new Date(2025, 7, 1); // August 1, 2025
+const customerLastMonthEnd = new Date(2025, 7, 31, 23, 59, 59); // August 31, 2025
+const customerLastMonthCount = await Customer.countDocuments({
+  createdAt: { $gte: customerLastMonthStart, $lte: customerLastMonthEnd },
+});
+const customerGrowthPercent = customerLastMonthCount > 0
+  ? ((totalCustomers - customerLastMonthCount) / customerLastMonthCount * 100).toFixed(0)
+  : 0;
+const formattedCustomerGrowth = customerGrowthPercent > 0
+  ? `+${customerGrowthPercent}%`
+  : `${customerGrowthPercent}%`;
+  
     // 3. Total Revenue
     const totalRevenue = await Subscription.aggregate([
       { $match: { status: { $in: ["Active", "Inactive"] } } },
@@ -41,13 +54,30 @@ router.get("/api/dashboard-stats", async (req, res) => {
     });
 
     // 5. New Tailors This Month (Daily breakdown for September 2025)
+
     const thisMonthStart = new Date(2025, 8, 1); // September 1, 2025
-    const thisMonthEnd = new Date(2025, 8, 30, 23, 59, 59); // September 30, 2025
-    const dailyNewTailors = await Tailor.aggregate([
-      { $match: { createdAt: { $gte: thisMonthStart, $lte: thisMonthEnd } } },
-      { $group: { _id: { $dayOfMonth: "$createdAt" }, count: { $sum: 1 } } },
-      { $sort: { "_id": 1 } },
-    ]);
+const thisMonthEnd = new Date(2025, 8, 30, 23, 59, 59); // September 30, 2025
+const dailyNewTailors = await Tailor.aggregate([
+  { $match: { createdAt: { $gte: thisMonthStart, $lte: thisMonthEnd } } },
+  { 
+    $group: { 
+      _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, 
+      count: { $sum: 1 } 
+    } 
+  },
+  { 
+    $project: { 
+      _id: 0, // Exclude the original _id
+      date: { $toDate: "$_id" }, // Convert string _id to Date object
+      count: 1 // Keep the count
+    } 
+  },
+  { $sort: { "date": 1 } }, // Sort by date
+]);
+
+
+
+
 
     // 6. Recent Activity: Latest Tailors Signed Up (Top 5)
     const recentTailors = await Tailor.find({})
@@ -66,9 +96,9 @@ router.get("/api/dashboard-stats", async (req, res) => {
       timeAgo: formatTimeAgo(tailor.createdAt),
     }));
 
-    // 7. Last Logins (Top 6, assuming UserLogin.userId references Tailor)
+    // 7. Last Logins (Top 6)
     const lastLogins = await UserLogin.find({})
-      .populate("userId", "shopName ownerName")
+      .populate("userId", "shopName ownerName") // userId now references Tailor
       .sort({ loginTime: -1 })
       .limit(6)
       .select("userId loginTime")
@@ -81,8 +111,10 @@ router.get("/api/dashboard-stats", async (req, res) => {
 
     // Compile all stats into a single response
     const dashboardStats = {
+      success: true,
+      message: "Dashboard stats fetched successfully",
       totalTailors: { count: totalTailors, growth: formattedGrowth },
-      totalCustomers,
+      totalCustomers: { count: totalCustomers, growth: formattedCustomerGrowth },
       totalRevenue: formattedRevenue,
       subscriptions: { active: activeSubs, inactive: inactiveSubs },
       newTailorsThisMonth: dailyNewTailors,
