@@ -130,7 +130,7 @@ router.get('/api/reports', async (req, res) => {
           date: {
             $ifNull: [
               { $dateToString: { format: '%Y-%m-%d', date: '$subscription.endDate' } },
-              'N/A',
+              tailor.createdAt,
             ],
           },
         },
