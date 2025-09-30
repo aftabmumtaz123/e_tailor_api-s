@@ -5,138 +5,63 @@ const Subscription = require('../model/subscription');
 
 router.get('/api/reports', async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
+     // Total Tailors
+    const totalTailors = await Tailor.countDocuments({});
+    const lastMonthCount = await Tailor.countDocuments({
+      createdAt: { $gte: lastMonthStart, $lte: lastMonthEnd },
+    });
+    const growthPercent = lastMonthCount > 0
+      ? ((totalTailors - lastMonthCount) / lastMonthCount * 100).toFixed(0)
+      : 0;
+    const formattedGrowth = growthPercent > 0 ? `+${growthPercent}%` : `${growthPercent}%`;
 
-    // Parse dates with default values if not provided
-    const start = startDate ? new Date(startDate) : new Date('2025-01-01');
-    const end = endDate ? new Date(endDate) : new Date();
-    end.setHours(23, 59, 59, 999); // Include the full end day
+    // Total Customers
+    const totalCustomers = await Customer.countDocuments({});
+    const customerLastMonthCount = await Customer.countDocuments({
+      createdAt: { $gte: lastMonthStart, $lte: lastMonthEnd },
+    });
+    const customerGrowthPercent = customerLastMonthCount > 0
+      ? ((totalCustomers - customerLastMonthCount) / customerLastMonthCount * 100).toFixed(0)
+      : 0;
+    const formattedCustomerGrowth = customerGrowthPercent > 0
+      ? `+${customerGrowthPercent}%`
+      : `${customerGrowthPercent}%`;
 
-    const reports = await Tailor.aggregate([
+    // Admin Revenue
+    const admin = await Admin.findById(req.user.id);
+    const formattedRevenue = `$${admin.revenue.toLocaleString() || 0}`;
+
+    // Per-Tailor Revenue
+    const tailorRevenue = await Subscription.aggregate([
+      { $match: { status: "Active" } },
+      { $group: { _id: "$tailorId", total: { $sum: "$revenue" } } },
       {
         $lookup: {
-          from: 'subscriptions',
-          localField: '_id',
-          foreignField: 'tailorId',
-          as: 'subscription',
+          from: "tailors",
+          localField: "_id",
+          foreignField: "_id",
+          as: "tailor",
         },
       },
-      {
-        $unwind: {
-          path: '$subscription',
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $lookup: {
-          from: 'customers',
-          localField: 'customers',
-          foreignField: '_id',
-          as: 'customerData',
-        },
-      },
-      {
-        $lookup: {
-          from: 'orders',
-          localField: 'orders',
-          foreignField: '_id',
-          as: 'ordersData',
-        },
-      },
-      {
-        $addFields: {
-          ordersData: {
-            $filter: {
-              input: '$ordersData',
-              as: 'order',
-              cond: {
-                $and: [
-                  { $gte: ['$$order.createdAt', start] },
-                  { $lte: ['$$order.createdAt', end] },
-                ],
-              },
-            },
-          },
-          subscription: {
-            $cond: {
-              if: { $eq: ['$subscription', {}] },
-              then: null,
-              else: '$subscription',
-            },
-          },
-        },
-      },
-      {
-        $addFields: {
-          revenue: { $sum: '$ordersData.amount' },
-          customersCount: { $size: '$customerData' },
-          customerSample: { $slice: ['$customerData', 3] }, // Top 3 customer names
-          ordersCount: { $size: '$ordersData' },
-          subscriptionStatus: {
-            $ifNull: ['$subscription.status', 'No Subscription'],
-          },
-          subscriptionDetails: {
-            planName: '$subscription.planName',
-            price: '$subscription.price',
-            duration: '$subscription.duration',
-            maxCustomers: '$subscription.maxCustomers',
-            startDate: '$subscription.startDate',
-            endDate: '$subscription.endDate',
-          },
-        },
-      },
-      {
-        $project: {
-          tailorName: '$shopName',
-          ownerName: 1,
-          phone: 1,
-          email: 1,
-          address: 1,
-          category: 1,
-          status: 1,
-          revenue: 1,
-          customersCount: 1,
-          customerSample: {
-            $map: {
-              input: '$customerSample',
-              as: 'customer',
-              in: { name: '$$customer.name', email: '$$customer.email' },
-            },
-          },
-          ordersCount: 1,
-          ordersData: {
-            $map: {
-              input: '$ordersData',
-              as: 'order',
-              in: {
-                orderId: '$$order._id',
-                customerId: '$$order.customerId',
-                amount: '$$order.amount',
-                status: '$$order.status',
-                createdAt: '$$order.createdAt',
-              },
-            },
-          },
-          subscriptionStatus: 1,
-          subscriptionDetails: 1,
-          date: {
-            $ifNull: [
-              { $dateToString: { format: '%Y-%m-%d', date: '$subscription.endDate' } },
-              'N/A',
-            ],
-          },
-        },
-      },
-      { $sort: { 'subscription.endDate': -1 } },
+      { $unwind: "$tailor" },
+      { $project: { shopName: "$tailor.shopName", revenue: "$total" } },
     ]);
 
-    // Format revenue in Pakistani Rupees
-    const formattedReports = reports.map(report => ({
-      ...report,
-      revenue: `Rs. ${report.revenue.toLocaleString('en-IN')}`,
-    }));
+    // Active and Inactive Subscriptions
+    const activeSubs = await Subscription.countDocuments({ status: "Active" });
+    const inactiveSubs = await Subscription.countDocuments({ status: "Inactive" });
 
-    res.json(formattedReports);
+
+     res.json({
+      success: true,
+      message: "Report stats fetched successfully",
+      totalTailors: { count: totalTailors, growth: formattedGrowth },
+      totalCustomers: { count: totalCustomers, growth: formattedCustomerGrowth },
+      totalRevenue: formattedRevenue,
+      tailorRevenue,
+      subscriptions: { active: activeSubs, inactive: inactiveSubs },
+      
+    });
   } catch (error) {
     console.error('Error generating reports:', error);
     res.status(500).json({ error: 'Failed to generate reports' });
