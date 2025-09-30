@@ -9,15 +9,20 @@ const User = require('../model/User'); // Mongoose model for Users
 const mongoose = require('mongoose');
 
 
+
 router.get("/api/dashboard-stats", async (req, res) => {
   try {
-    // Current date and time: September 29, 2025, 4:08 PM PKT (UTC+5)
-    const now = new Date("2025-09-29T16:08:00+05:00");
+    // Verify admin access
+ 
 
-    // 1. Total Tailors with growth percentage
+    const now = new Date();
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+    // Total Tailors
     const totalTailors = await Tailor.countDocuments({});
-    const lastMonthStart = new Date(2025, 7, 1); // August 1, 2025
-    const lastMonthEnd = new Date(2025, 7, 31, 23, 59, 59); // August 31, 2025
     const lastMonthCount = await Tailor.countDocuments({
       createdAt: { $gte: lastMonthStart, $lte: lastMonthEnd },
     });
@@ -26,60 +31,64 @@ router.get("/api/dashboard-stats", async (req, res) => {
       : 0;
     const formattedGrowth = growthPercent > 0 ? `+${growthPercent}%` : `${growthPercent}%`;
 
-   // 2. Total Customers with growth percentage
-const totalCustomers = await Customer.countDocuments({});
-const customerLastMonthStart = new Date(2025, 7, 1); // August 1, 2025
-const customerLastMonthEnd = new Date(2025, 7, 31, 23, 59, 59); // August 31, 2025
-const customerLastMonthCount = await Customer.countDocuments({
-  createdAt: { $gte: customerLastMonthStart, $lte: customerLastMonthEnd },
-});
-const customerGrowthPercent = customerLastMonthCount > 0
-  ? ((totalCustomers - customerLastMonthCount) / customerLastMonthCount * 100).toFixed(0)
-  : 0;
-const formattedCustomerGrowth = customerGrowthPercent > 0
-  ? `+${customerGrowthPercent}%`
-  : `${customerGrowthPercent}%`;
-  
-    // 3. Total Revenue
+    // Total Customers
+    const totalCustomers = await Customer.countDocuments({});
+    const customerLastMonthCount = await Customer.countDocuments({
+      createdAt: { $gte: lastMonthStart, $lte: lastMonthEnd },
+    });
+    const customerGrowthPercent = customerLastMonthCount > 0
+      ? ((totalCustomers - customerLastMonthCount) / customerLastMonthCount * 100).toFixed(0)
+      : 0;
+    const formattedCustomerGrowth = customerGrowthPercent > 0
+      ? `+${customerGrowthPercent}%`
+      : `${customerGrowthPercent}%`;
+
+    // Total Revenue
     const totalRevenue = await Subscription.aggregate([
-      { $match: { status: { $in: ["Active", "Inactive"] } } },
+      { $match: { status: "Active" } },
       { $group: { _id: null, total: { $sum: "$revenue" } } },
     ]);
-    const formattedRevenue = `$${totalRevenue[0]?.total?.toLocaleString() || "0"}`;
 
-    // 4. Active and Expired Subscriptions
+    // Per-Tailor Revenue
+    const tailorRevenue = await Subscription.aggregate([
+      { $match: { status: "Active" } },
+      { $group: { _id: "$tailorId", total: { $sum: "$revenue" } } },
+      {
+        $lookup: {
+          from: "tailors",
+          localField: "_id",
+          foreignField: "_id",
+          as: "tailor",
+        },
+      },
+      { $unwind: "$tailor" },
+      { $project: { shopName: "$tailor.shopName", revenue: "$total" } },
+    ]);
+
+    // Active and Inactive Subscriptions
     const activeSubs = await Subscription.countDocuments({ status: "Active" });
-    const inactiveSubs = await Subscription.countDocuments({
-      status: "Inactive",
-    });
+    const inactiveSubs = await Subscription.countDocuments({ status: "Inactive" });
 
-    // 5. New Tailors This Month (Daily breakdown for September 2025)
+    // New Tailors This Month
+    const dailyNewTailors = await Tailor.aggregate([
+      { $match: { createdAt: { $gte: thisMonthStart, $lte: thisMonthEnd } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          date: { $toDate: "$_id" },
+          count: 1,
+        },
+      },
+      { $sort: { date: 1 } },
+    ]);
 
-    const thisMonthStart = new Date(2025, 8, 1); // September 1, 2025
-const thisMonthEnd = new Date(2025, 8, 30, 23, 59, 59); // September 30, 2025
-const dailyNewTailors = await Tailor.aggregate([
-  { $match: { createdAt: { $gte: thisMonthStart, $lte: thisMonthEnd } } },
-  { 
-    $group: { 
-      _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, 
-      count: { $sum: 1 } 
-    } 
-  },
-  { 
-    $project: { 
-      _id: 0, // Exclude the original _id
-      date: { $toDate: "$_id" }, // Convert string _id to Date object
-      count: 1 // Keep the count
-    } 
-  },
-  { $sort: { "date": 1 } }, // Sort by date
-]);
-
-
-
-
-
-    // 6. Recent Activity: Latest Tailors Signed Up (Top 5)
+    // Recent Activity
     const recentTailors = await Tailor.find({})
       .sort({ createdAt: -1 })
       .limit(5)
@@ -96,9 +105,9 @@ const dailyNewTailors = await Tailor.aggregate([
       timeAgo: formatTimeAgo(tailor.createdAt),
     }));
 
-    // 7. Last Logins (Top 6)
+    // Last Logins
     const lastLogins = await UserLogin.find({})
-      .populate("userId", "shopName ownerName") // userId now references Tailor
+      .populate("userId", "shopName ownerName")
       .sort({ loginTime: -1 })
       .limit(6)
       .select("userId loginTime")
@@ -109,24 +118,24 @@ const dailyNewTailors = await Tailor.aggregate([
       timeAgo: formatTimeAgo(login.loginTime),
     }));
 
-    // Compile all stats into a single response
-    const dashboardStats = {
+    res.json({
       success: true,
       message: "Dashboard stats fetched successfully",
       totalTailors: { count: totalTailors, growth: formattedGrowth },
       totalCustomers: { count: totalCustomers, growth: formattedCustomerGrowth },
-      totalRevenue: formattedRevenue,
+      totalRevenue: `$${totalRevenue[0]?.total?.toLocaleString() || 0}`,
+      tailorRevenue,
       subscriptions: { active: activeSubs, inactive: inactiveSubs },
       newTailorsThisMonth: dailyNewTailors,
       recentActivity: formattedRecentTailors,
       lastLogins: formattedLastLogins,
-    };
-
-    res.json(dashboardStats);
+    });
   } catch (error) {
     console.error("Error fetching dashboard stats:", error);
-    res.status(500).json({ error: "Failed to fetch dashboard stats" });
+    res.status(500).json({ success: false, message: "Failed to fetch dashboard stats", error: error.message });
   }
 });
+
+
 
 module.exports = router;
