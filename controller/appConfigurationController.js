@@ -225,28 +225,7 @@ exports.updateAppConfiguration = async (req, res) => {
       });
     }
 
-    // Validate color formats (if provided)
-    const validateColor = (color) =>
-      color
-        ? /^#([0-9A-F]{3}|[0-9A-F]{6})$|^rgb\(\d{1,3},\s*\d{1,3},\s*\d{1,3}\)$/.test(
-            color.toLowerCase()
-          )
-        : true;
-
-    if (primaryColor && !validateColor(primaryColor)) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Invalid primaryColor format (use #RRGGBB or rgb(r,g,b))",
-      });
-    }
-    if (secondaryColor && !validateColor(secondaryColor)) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Invalid secondaryColor format (use #RRGGBB or rgb(r,g,b))",
-      });
-    }
+    
 
     // Arrays validation
     if (contactEmails && !Array.isArray(contactEmails)) {
