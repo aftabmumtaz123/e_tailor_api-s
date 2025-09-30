@@ -45,7 +45,7 @@ router.get("/api/dashboard-stats", async (req, res) => {
 
     // Total Revenue
     const totalRevenue = await Subscription.aggregate([
-      { $match: { status: "Active" } },
+      { $match: { status: "Active"  } },
       { $group: { _id: null, total: { $sum: "$revenue" } } },
     ]);
 
