@@ -5,6 +5,11 @@ const Subscription = require('../model/subscription');
 
 router.get('/api/reports', async (req, res) => {
   try {
+     const now = new Date();
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
      // Total Tailors
     const totalTailors = await Tailor.countDocuments({});
     const lastMonthCount = await Tailor.countDocuments({
