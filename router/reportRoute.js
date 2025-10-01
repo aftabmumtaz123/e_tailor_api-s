@@ -63,8 +63,8 @@ router.get('/api/reports', async (req, res) => {
           subscriptionStatus: {
             $cond: {
               if: { $eq: ['$subscription.status', 'Active'] },
-              then: 'Active',
-              else: 'Expired'
+              then: 'Expired',
+              else: 'Active'
             }
           },
           date: {
